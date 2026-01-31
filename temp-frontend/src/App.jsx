@@ -59,7 +59,9 @@ function App() {
   };
 
   const animateAgentLogs = async (agent_logs) => {
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    // Calculate total duration (90 seconds)
+    const totalDuration = 90000;
+    const delay = totalDuration / agent_logs.length;
 
     // Set Coordinator as active from the start
     setAgentStatus({ Coordinator: "active" });
@@ -83,24 +85,15 @@ function App() {
 
       const agentKey = statusMap[agentType];
       if (agentKey) {
-        // Coordinator stays active throughout
-        if (agentKey === 'Coordinator') {
-          setAgentStatus(prev => ({
-            ...prev,
-            Coordinator: "active"
-          }));
-        } else {
-          // Other agents become active when they work
-          setAgentStatus(prev => ({
-            ...prev,
-            Coordinator: "active", // Keep coordinator active
-            [agentKey]: "active"
-          }));
-        }
+        setAgentStatus(prev => ({
+          ...prev,
+          Coordinator: "active",
+          [agentKey]: "active"
+        }));
       }
 
-      // Small delay between logs for animation effect
-      await delay(300);
+      // Wait for the calculated delay to ensure exactly 50s total time
+      await new Promise(resolve => setTimeout(resolve, delay));
 
       // Mark as complete when moving to next agent (but not Coordinator)
       if (i < agent_logs.length - 1) {

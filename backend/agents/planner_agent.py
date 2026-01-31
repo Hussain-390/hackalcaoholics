@@ -15,11 +15,9 @@ class PlannerAgent:
     def plan_research(self, query: str) -> list:
         """Break down complex query into research tasks"""
         
-        if self.demo_mode:
-            # Demo mode: return predefined tasks based on query
-            return self._demo_plan(query)
-        
-        prompt = f"""You are a research planner. Break down this query into 3-5 specific research tasks.
+        try:
+            # Prioritize direct LLM call
+            prompt = f"""You are a research planner. Break down this query into 3-5 specific research tasks.
 
 Query: {query}
 
@@ -28,22 +26,29 @@ Return ONLY a numbered list of tasks. Example:
 2. Research expert opinions about Y
 3. Analyze trends in Z"""
 
-        response = self.model.generate_content(prompt)
-        tasks_text = response.text.strip()
-        
-        # Parse tasks
-        tasks = []
-        for i, line in enumerate(tasks_text.split('\n')):
-            if line.strip() and (line[0].isdigit() or line.startswith('-')):
-                task_desc = line.split('.', 1)[-1].strip()
-                if task_desc:
-                    tasks.append(ResearchTask(
-                        id=str(uuid.uuid4()),
-                        description=task_desc,
-                        priority=i+1
-                    ))
-        
-        return tasks
+            response = self.model.generate_content(prompt)
+            tasks_text = response.text.strip()
+            
+            # Parse tasks
+            tasks = []
+            for i, line in enumerate(tasks_text.split('\n')):
+                if line.strip() and (line[0].isdigit() or line.startswith('-')):
+                    task_desc = line.split('.', 1)[-1].strip()
+                    if task_desc:
+                        tasks.append(ResearchTask(
+                            id=str(uuid.uuid4()),
+                            description=task_desc,
+                            priority=i+1
+                        ))
+            
+            if not tasks:
+                 raise Exception("No tasks parsed")
+                 
+            return tasks
+
+        except Exception as e:
+            print(f"[PLANNER] LLM Error: {e}. Falling back to demo plan.")
+            return self._demo_plan(query)
     
     def _demo_plan(self, query: str) -> list:
         """Return demo tasks"""

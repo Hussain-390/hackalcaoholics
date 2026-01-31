@@ -18,7 +18,7 @@ class VerificationAgent:
             # Demo mode or no sources
             return {
                 "has_conflicts": False,
-                "verification_text": "Sources show consistent information with no major contradictions detected. Multiple independent sources agree on key facts and figures.",
+                "verification_text": "No sources available for verification",
                 "confidence_adjustment": 0.0
             }
         

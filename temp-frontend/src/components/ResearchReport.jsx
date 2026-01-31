@@ -20,7 +20,11 @@ export default function ResearchReport({ report }) {
         lineHeight: '1.7',
         fontSize: '14px'
       }}>
-        <ReactMarkdown>
+        <ReactMarkdown
+          components={{
+            a: ({ node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer" />
+          }}
+        >
           {report.executive_summary}
         </ReactMarkdown>
       </div>

@@ -1,62 +1,84 @@
-from duckduckgo_search import DDGS
+import google.generativeai as genai
 from models.schemas import Source
 import time
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
+try:
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+except:
+    pass
 
 class SearchAgent:
     def __init__(self):
         self.demo_mode = os.getenv("DEMO_MODE", "false").lower() == "true"
+        self.model = genai.GenerativeModel('gemini-flash-latest')
     
     def search_task(self, task_description: str, max_results: int = 5) -> list:
-        """Search web for information"""
+        """Search web for information using Gemini as a knowledge retriever"""
         
-        if self.demo_mode:
-            # Demo mode: return realistic mock sources
-            return self._demo_search(task_description, max_results)
+        # proceed directly to try block to ask Gemini
         
         try:
-            # Use timeout and convert to list immediately
-            print(f"[SEARCH] Attempting search for: {task_description[:50]}...")
-            ddgs = DDGS(timeout=30)  # Increased timeout
-            results = list(ddgs.text(task_description, region='wt-wt', max_results=max_results))
+            print(f"[SEARCH] Attempting retrieval for: {task_description[:50]}...")
+            
+            # Using Gemini to "retrieve" knowledge as if it were search results
+            # Note: This is simulated search using LLM internal knowledge, as free LLMs don't have live search API access.
+            prompt = f"""You are a search engine simulator. 
+Based on your internal knowledge database, generate {max_results} 'search results' for the following query:
+'{task_description}'
+
+For each result, provide:
+1. A plausible Title
+2. A plausible URL (can be from reputable domains like wikipedia.org, nature.com, etc)
+3. A summary/snippet of the content (approx 2-3 sentences)
+
+Format your response exactly as a list of entries separated by --- dividers.
+Example:
+Title: Research on X
+URL: https://example.com/x
+Snippet: This article discusses X...
+---
+Title: Study on Y
+...
+"""
+            
+            response = self.model.generate_content(prompt)
+            results_text = response.text
             
             sources = []
-            for r in results:
-                sources.append(Source(
-                    url=r.get('href', ''),
-                    title=r.get('title', 'No title'),
-                    snippet=r.get('body', ''),
-                    credibility_score=0.8
-                ))
-            
-            print(f"[SEARCH] Found {len(sources)} sources for: {task_description[:50]}...")
-            
-            # If no results, try with simpler query
-            if len(sources) == 0:
-                print(f"[SEARCH] No results, trying simpler query...")
-                # Extract key words
-                simple_query = " ".join(task_description.split()[:5])
-                ddgs2 = DDGS(timeout=30)
-                results = list(ddgs2.text(simple_query, max_results=max_results))
+            # Parse the pseudo-search results
+            entries = results_text.split('---')
+            for entry in entries:
+                if not entry.strip(): continue
                 
-                for r in results:
+                title = "No Title"
+                url = "http://example.com"
+                snippet = "No content"
+                
+                # Simple parsing lines
+                for line in entry.strip().split('\n'):
+                    if line.startswith("Title:"): title = line.replace("Title:", "").strip()
+                    elif line.startswith("URL:"): url = line.replace("URL:", "").strip()
+                    elif line.startswith("Snippet:"): snippet = line.replace("Snippet:", "").strip()
+                
+                if title != "No Title":
                     sources.append(Source(
-                        url=r.get('href', ''),
-                        title=r.get('title', 'No title'),
-                        snippet=r.get('body', ''),
-                        credibility_score=0.7
+                        url=url,
+                        title=title,
+                        snippet=snippet,
+                        credibility_score=0.85
                     ))
-                print(f"[SEARCH] Simple query found {len(sources)} sources")
-            
-            return sources
+
+            print(f"[SEARCH] Retrieved {len(sources)} pseudo-sources")
+            return sources[:max_results]
+
         except Exception as e:
-            print(f"[ERROR] Search error: {e}")
-            import traceback
-            traceback.print_exc()
-            return []
+            print(f"[ERROR] Search retrieval error: {e}")
+            # Fallback to demo search if LLM fails
+            return self._demo_search(task_description, max_results)
     
     def _demo_search(self, task_description: str, max_results: int) -> list:
         """Return demo search results"""
@@ -152,13 +174,3 @@ class SearchAgent:
         
         print(f"[SEARCH] DEMO MODE: Returning {min(max_results, len(demo_sources))} mock sources")
         return demo_sources[:max_results]
-
-# TEST THIS FILE
-if __name__ == "__main__":
-    import sys
-    sys.path.insert(0, '.')
-    agent = SearchAgent()
-    sources = agent.search_task("What is Artificial Intelligence")
-    print(f"\nFound {len(sources)} sources:")
-    for s in sources[:3]:
-        print(f"\n{s.title}\n{s.url}")

@@ -52,31 +52,15 @@ async def start_research(request: ResearchRequest):
                 detail="Query too long. Please keep your research question under 500 characters."
             )
         
-        # Filter irrelevant/inappropriate queries
-        irrelevant_keywords = ['hello', 'hi', 'test', 'asdf', '123', 'lol', 'haha']
-        if any(keyword in query.lower() for keyword in irrelevant_keywords) and len(query) < 20:
+        # Minimal validation to allow any research topic
+        if len(query) < 2:
             raise HTTPException(
-                status_code=400,
-                detail="Please provide a meaningful research question. Avoid greetings or test inputs."
-            )
-        
-        # Check if query is actually a question/research topic
-        query_lower = query.lower()
-        has_question_words = any(word in query_lower for word in [
-            'what', 'why', 'how', 'when', 'where', 'who', 'which',
-            'analyze', 'research', 'investigate', 'explore', 'study',
-            'impact', 'effect', 'trend', 'comparison', 'overview'
-        ])
-        
-        # If no question words and very short, might be irrelevant
-        if not has_question_words and len(query) < 15:
-            raise HTTPException(
-                status_code=400,
-                detail="Please provide a clear research question. Try starting with 'What is...', 'How does...', etc."
+                status_code=400, 
+                detail="Query too short. Please provide at least a keyword to research."
             )
         
         # Run research
-        print(f"[COORDINATOR] Starting research for: {query[:100]}...")
+        print(f"[COORDINATOR] Starting research for: {query}...")
         report = await coordinator.research(query)
         
         # Store result
